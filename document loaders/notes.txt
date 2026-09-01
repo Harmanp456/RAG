@@ -1,0 +1,8 @@
+Core Components of the RAG Pipeline:
+Document Loaders: The tutorial demonstrates how to load various formats, including PDFs and web data, into the LangChain framework. It explains the transformation of raw files into processable Document objects containing metadata and page content.
+Text Splitters: Because LLMs have context window limits, the video details the necessity of breaking down large documents into smaller, manageable chunks. It focuses on character-based and token-based splitting (using tiktoken) to ensure meaningful context is preserved.
+Vector Stores: The tutorial covers the architecture of storing semantic information as embeddings. It implements ChromaDB as a persistent vector database, explaining how it handles high-dimensional vector representations and facilitates efficient searching.
+Retrievers: The video explores advanced retrieval strategies beyond basic lookups. It covers Similarity Search for finding the most relevant chunks, MMR (Maximal Marginal Relevance) to reduce redundancy in retrieved results, and Multi-Query strategies where an LLM generates multiple variations of a user's question to fetch more comprehensive context.
+Project Implementation:
+Status: The tutorial guides the setup of the development environment (including API keys for Mistral and OpenAI), ingestion of source material, generation of embeddings, and the configuration of the vector database.
+Functionality: The final system is designed to integrate these components into a functional chatbot interface. The workflow involves a user query, the retriever fetching the most relevant document chunks based on semantic meaning, and the Mistral LLM generating a context-aware response derived specifically from those chunks.
