@@ -2,25 +2,85 @@ import os
 
 from dotenv import load_dotenv
 from langchain_mistralai import ChatMistralAI
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_mistralai import MistralAIEmbeddings
+from langchain_chroma import Chroma
+from httpx import HTTPStatusError
+
 from langchain_core.prompts import ChatPromptTemplate
 load_dotenv()
 
-data = PyPDFLoader("document loaders/deeplearning.pdf").load()
 
-splitter=   RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)  # Split the text into chunks of 1000 characters with 10 characters overlap
-chunk=splitter.split_documents(data)
-template = ChatPromptTemplate.from_messages(
+embeddings = MistralAIEmbeddings(model="mistral-embed")
+vectorstore = Chroma(
+    persist_directory= "chroma_db",
+    embedding_function=embeddings
+)
+
+retriever = vectorstore.as_retriever(
+    search_type = "mmr",
+    search_kwargs = {
+        "k" : 4,
+        "fetch_k":10,
+        "lambda_mult" :0.5
+    }
+)
+
+llm = ChatMistralAI(
+    model_name="mistral-small-latest",
+    temperature=0.2,
+    max_tokens=512,
+    max_retries=0,
+)
+
+#prompt template 
+prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are an AI that summarizes the text."),
-        ("human", "{data}")
+        (
+            "system",
+            """You are a helpful AI assistant.
+
+Use ONLY the provided context to answer the question.
+
+If the answer is not present in the context,
+say: "I could not find the answer in the document."
+"""
+        ),
+        (
+            "human",
+            """Context:
+{context}
+
+Question:
+{question}
+"""
+        )
     ]
 )
 
-model = ChatMistralAI(model="mistral-small-latest")
+print("Rag system created ")
 
-prompt = template.format_messages(data=chunk[0].page_content)
-result = model.invoke(prompt)
+print("press 0 to exit ")
 
-print(result.content)
+while True:
+    query = input("You : ")
+    if query == "0":
+        break 
+    
+    docs = retriever.invoke(query)
+
+    context = "\n\n".join(
+        [doc.page_content for doc in docs]
+    )
+    
+    final_prompt = prompt.invoke({
+        "context" :context,
+        "question": query
+    })
+    try:
+        response = llm.invoke(final_prompt)
+        print(f"\n AI: {response.content}")
+    except HTTPStatusError as error:
+        if error.response.status_code == 429:
+            print("\n Mistral API rate limit reached. Wait for the quota window to reset and try again.")
+        else:
+            print(f"\n Mistral API error ({error.response.status_code}). Check your API key and account status.")
